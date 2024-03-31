@@ -13,10 +13,10 @@ Before running the application, ensure you have the following installed on your 
 
 ### Installation
 
-1. Navigate to the `frontend` directory: 
+1. Navigate to the `frontend` directory:
 #### cd frontend
 
-2. Install dependencies:
+3. Install dependencies:
 #### npm install
 
 ### Running the Frontend
