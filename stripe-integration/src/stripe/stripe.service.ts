@@ -1,44 +1,76 @@
 import { Injectable } from '@nestjs/common';
 import { Inject } from '@nestjs/common/decorators';
-import Stripe from 'stripe';
-
+// import Stripe from 'stripe';
+const {PaymentService,SubscriptionService,CustomerService} = require('integrate-stripe');
 @Injectable()
-export class StripeService {
-  constructor(@Inject('STRIPE_CLIENT') private readonly stripe: Stripe) {}
+export class StripeService1 {
+  constructor(@Inject('STRIPE_CLIENT') private readonly stripe) {}
 
-  async getstripeConfig(): Promise<{ publishableKey: string }> {
+  
+  async getstripeConfig() {
     return {
-      publishableKey: process.env.STRIPE_PUBLIC_KEY,
+      publishableKey: process.env.STRIPE_PUBLIC_KEY,config:this.stripe.config,
     };
   }
 
-  async createCustomer(email: string, name?: string): Promise<Stripe.Customer> {
+  async updateStripeConfig(config: any) {
+    try{
+      if(config.currency){
+        this.stripe.setCurrency(config.currency);
+      }
+      if(config.paymentMethods){
+        this.stripe.setPaymentMethods(config.paymentMethods);
+      }
+      if(config.apiVersion){
+        this.stripe.setApiVersion(config.apiVersion);
+      }
+      if(config.webhookEnabled){
+        this.stripe.enableWebhook(config.webhookUrl);
+      }
+      return this.stripe.config;
+    }catch(error){
+      throw new Error('Error updating stripe config: ' + error.message);
+    }
+  }
+
+  async getAllCustomers(limit:number,startingAfter:number) {
+    const customers = new CustomerService(this.stripe);
     try {
-      const customer = await this.stripe.customers.create({
-        email,
-        name,
-      });
+      const allCustomers = await customers.listCustomers(limit,startingAfter);
+      return allCustomers;
+    } catch (error) {
+      throw new Error('Error retrieving customers: ' + error.message);
+    }
+  }
+
+  async createCustomer(email: string, name?: string) {
+    const customers = new CustomerService(this.stripe);
+    try {
+      const customer = await customers.createCustomer(email,{name});
       return customer;
     } catch (error) {
       throw new Error('Error creating customer: ' + error.message);
     }
   }
 
-  async getCustomerByEmail(email: string): Promise<Stripe.Customer[]> {
+
+  async getCustomerById(customerId: string) {
+    const customers = new CustomerService(this.stripe);
     try {
-      const customers = await this.stripe.customers.list({ email });
-      return customers.data;
+      const customer = await customers.getCustomerById(customerId);
+      return customer;
     } catch (error) {
       throw new Error('Error retrieving customer: ' + error.message);
     }
   }
 
   async updateCustomer(
-    customerId: string,
-    updateParams: Stripe.CustomerUpdateParams,
-  ): Promise<Stripe.Customer> {
+    customerId:string,
+    updateParams: any,
+  ) {
+    const customers = new CustomerService(this.stripe);
     try {
-      const updatedCustomer = await this.stripe.customers.update(
+      const updatedCustomer = await customers.updateCustomer(
         customerId,
         updateParams,
       );
@@ -49,8 +81,10 @@ export class StripeService {
   }
 
   async deleteCustomer(customerId: string): Promise<{ message: string }> {
+    const customers = new CustomerService(this.stripe);
     try {
-      await this.stripe.customers.del(customerId);
+
+      await customers.deleteCustomer(customerId);
       return { message: 'Customer deleted successfully' };
     } catch (error) {
       throw new Error('Error deleting customer: ' + error.message);
@@ -63,9 +97,10 @@ export class StripeService {
     expMonth: number,
     expYear: number,
     cvc: string,
-  ): Promise<Stripe.PaymentMethod> {
+  ) {
+    const payments = new PaymentService(this.stripe);
     try {
-      const paymentMethod = await this.stripe.paymentMethods.create({
+      const paymentMethod = await payments.createPaymentMethod({
         type: 'card',
         card: {
           number: cardNumber,
@@ -80,9 +115,10 @@ export class StripeService {
     }
   }
 
-  async getPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+  async getPaymentMethod(paymentMethodId: string) {
+    const payments=new PaymentService(this.stripe);
     try {
-      const paymentMethod = await this.stripe.paymentMethods.retrieve(
+      const paymentMethod = await payments.getPaymentMethod(
         paymentMethodId,
       );
       return paymentMethod;
@@ -91,51 +127,41 @@ export class StripeService {
     }
   }
 
-  async createCharge(
-    customerId: string,
-    amount: number,
-    currency: string = 'usd',
-    source?: string,
-  ): Promise<Stripe.Charge> {
-    try {
-      const charge = await this.stripe.charges.create({
-        amount,
-        currency,
-        customer: customerId,
-        source,
-      });
-      return charge;
-    } catch (error) {
-      throw new Error('Error creating charge: ' + error.message);
-    }
-  }
 
   async createPaymentIntent(
     amount: number,
     currency: string,
     paymentMethod?: string,
-    customerId?: string,
-    returnUrl?: string,
-  ): Promise<Stripe.PaymentIntent> {
+  ) {
+    const payments = new PaymentService(this.stripe);
     try {
-      const paymentIntent = await this.stripe.paymentIntents.create({
-        amount,
-        currency,
-        payment_method: paymentMethod,
-        customer: customerId,
-        return_url: returnUrl,
-      });
+      const paymentIntent = await payments.createPaymentIntent(amount,currency,paymentMethod);
       return paymentIntent;
     } catch (error) {
       throw new Error('Error creating payment intent: ' + error.message);
     }
   }
 
+  async capturePaymentIntent(
+    paymentIntentId: string,
+  ) {
+    const payments = new PaymentService(this.stripe);
+    try {
+      const paymentIntent = await payments.capturePaymentIntent(
+        paymentIntentId,
+      );
+      return paymentIntent;
+    } catch (error) {
+      throw new Error('Error capturing payment intent: ' + error.message);
+    }
+  }
+
   async confirmPaymentIntent(
     paymentIntentId: string,
-  ): Promise<Stripe.PaymentIntent> {
+  ) {
+    const payments = new PaymentService(this.stripe);
     try {
-      const paymentIntent = await this.stripe.paymentIntents.confirm(
+      const paymentIntent = await payments.confirmPaymentIntent(
         paymentIntentId,
       );
       return paymentIntent;
@@ -145,9 +171,11 @@ export class StripeService {
   }
   
 
-  async retrievePaymentIntent(clientSecret: string) {
+  async retrievePaymentIntent(paymentIntentId: string) {
+    const payments = new PaymentService(this.stripe);
+
     try {
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(clientSecret);
+      const paymentIntent = await payments.retrievePaymentIntent(paymentIntentId);
       return paymentIntent;
     } catch (error) {
       throw new Error('Error retrieving payment intent: ' + error.message);
@@ -156,22 +184,21 @@ export class StripeService {
 
   async createSubscription(
     customerId: string,
-    planId: string,
-  ): Promise<Stripe.Subscription> {
+    priceId: string,
+  ) {
+    const subscriptions = new SubscriptionService(this.stripe);
     try {
-      const subscription = await this.stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ plan: planId }],
-      });
+      const subscription = await subscriptions.createSubscription(customerId,priceId);
       return subscription;
     } catch (error) {
       throw new Error('Error creating subscription: ' + error.message);
     }
   }
 
-  async getSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
+  async getSubscription(subscriptionId: string){
+    const subscriptions = new SubscriptionService(this.stripe);
     try {
-      const subscription = await this.stripe.subscriptions.retrieve(
+      const subscription = await subscriptions.retrieveSubscription(
         subscriptionId,
       );
       return subscription;
@@ -182,9 +209,10 @@ export class StripeService {
 
   async cancelSubscription(
     subscriptionId: string,
-  ): Promise<Stripe.Subscription> {
+  ){
+    const subscriptions = new SubscriptionService(this.stripe);
     try {
-      const canceledSubscription = await this.stripe.subscriptions.cancel(subscriptionId);
+      const canceledSubscription = await subscriptions.cancelSubscription(subscriptionId);
       return canceledSubscription;
     } catch (error) {
       throw new Error('Error canceling subscription: ' + error.message);

@@ -1,14 +1,34 @@
 import { Controller, Post, Body, Get, Param, Delete, Patch } from '@nestjs/common';
-import { StripeService } from './stripe.service';
+import { StripeService1 } from './stripe.service';
 import Stripe from 'stripe';
 
 @Controller('stripe')
 export class StripeController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(private readonly stripeService: StripeService1) {}
 
   @Get('config')
   async getStripeConfig() {
     return this.stripeService.getstripeConfig();
+  }
+
+  @Patch('update-config')
+  async updateStripeConfig(
+    @Body('config') config: Stripe.StripeConfig,
+  ) {
+    return this.stripeService.updateStripeConfig(config);
+  }
+
+  @Get('customers/:limit/:startingAfter')
+  async getAllCustomers(
+    @Param('limit') limit: number,
+    @Param('startingAfter') startingAfter: number,
+  ) {
+    try {
+      const customers = await this.stripeService.getAllCustomers(limit, startingAfter);
+      return { customers };
+    } catch (error) {
+      return { error: error.message };
+    }
   }
 
   @Post('create-customer')
@@ -24,10 +44,10 @@ export class StripeController {
     }
   }
 
-  @Get('customer/:email')
-  async getCustomerByEmail(@Param('email') email: string) {
+  @Get('customer/:id')
+  async getCustomerById(@Param('id') id: string) {
     try {
-      const customers = await this.stripeService.getCustomerByEmail(email);
+      const customers = await this.stripeService.getCustomerById(id);
       return { customers };
     } catch (error) {
       return { error: error.message };
@@ -94,25 +114,6 @@ export class StripeController {
     }
   }
 
-  @Post('create-charge')
-  async createCharge(
-    @Body('customerId') customerId: string,
-    @Body('amount') amount: number,
-    @Body('currency') currency = 'usd',
-    @Body('source') source?: string,
-  ) {
-    try {
-      const charge = await this.stripeService.createCharge(
-        customerId,
-        amount,
-        currency,
-        source,
-      );
-      return { charge };
-    } catch (error) {
-      return { error: error.message };
-    }
-  }
 
   @Post('create-payment-intent')
   async createPaymentIntent(
@@ -127,8 +128,6 @@ export class StripeController {
         amount,
         currency,
         paymentMethod,
-        customerId,
-        returnUrl,
       );
       return { paymentIntent };
     } catch (error) {
@@ -148,10 +147,23 @@ export class StripeController {
     }
   }
 
-  @Get('retrieve-payment-intent/:clientSecret')
-  async retrievePaymentIntent(@Param('clientSecret') clientSecret: string) {
+  @Post('capture-payment-intent/:id')
+  async capturePaymentIntent(@Param('id') paymentIntentId: string) {
     try {
-      const paymentIntent = await this.stripeService.retrievePaymentIntent(clientSecret);
+      const paymentIntent = await this.stripeService.capturePaymentIntent(
+        paymentIntentId
+      );
+      return { paymentIntent };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+
+  @Get('retrieve-payment-intent/:paymentIntentId')
+  async retrievePaymentIntent(@Param('paymentIntentId') paymentIntentId: string) {
+    try {
+      const paymentIntent = await this.stripeService.retrievePaymentIntent(paymentIntentId);
       return { paymentIntent };
     } catch (error) {
       return { error: error.message };
@@ -161,12 +173,12 @@ export class StripeController {
   @Post('create-subscription')
   async createSubscription(
     @Body('customerId') customerId: string,
-    @Body('planId') planId: string,
+    @Body('planId') priceId: string,
   ) {
     try {
       const subscription = await this.stripeService.createSubscription(
         customerId,
-        planId,
+        priceId,
       );
       return { subscription };
     } catch (error) {

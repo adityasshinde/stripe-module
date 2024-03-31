@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config'; // Import ConfigModule
 import { StripeController } from './stripe.controller';
-import { StripeService } from './stripe.service';
-import { Stripe } from 'stripe';
+import { StripeService1 } from './stripe.service';
+const stripe = require('integrate-stripe');
 
 
 @Module({
@@ -11,16 +11,18 @@ import { Stripe } from 'stripe';
   ],
   controllers: [StripeController],
   providers: [
-    StripeService,
+    StripeService1,
     {
       provide: 'STRIPE_CLIENT',
       useFactory: () => {
-        return new Stripe(process.env.STRIPE_API_KEY, {
+        return new stripe.StripeService(process.env.STRIPE_API_KEY, {
           apiVersion: '2023-10-16',
         });
       },
     },
   ],
-  exports: ['STRIPE_CLIENT',StripeService],
+  exports: ['STRIPE_CLIENT',StripeService1],
 })
-export class StripeModule {}
+export class StripeModule {
+  
+}
