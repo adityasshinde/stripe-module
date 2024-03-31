@@ -14,15 +14,15 @@ Before running the application, ensure you have the following installed on your 
 ### Installation
 
 1. Navigate to the `frontend` directory: 
-# cd frontend
+#### cd frontend
 
 2. Install dependencies:
-# npm install
+#### npm install
 
 ### Running the Frontend
 
 Start the frontend server:
-# npm start
+#### npm start
 
 The frontend server will be accessible at http://localhost:3000.
 
@@ -31,15 +31,15 @@ The frontend server will be accessible at http://localhost:3000.
 ### Installation
 
 1. Navigate to the `stripe-integration` directory:
-# cd ../stripe-integration
+#### cd ../stripe-integration
 
 2. Install dependencies:
-# npm install
+#### npm install
 
 ### Running the Backend
 
 Start the backend server:
-# npm start
+#### npm start
 
 The backend server will be accessible at http://localhost:3001.
 
